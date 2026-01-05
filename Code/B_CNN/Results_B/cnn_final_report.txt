@@ -1,0 +1,51 @@
+Experiment Model capacity
+width x1 Accuracy: 0.8397
+width x2 Accuracy: 0.8526
+width x3 Accuracy: 0.8590
+width x4 Accuracy: 0.8462
+width x5 Accuracy: 0.8654
+width x6 Accuracy: 0.8590
+width x7 Accuracy: 0.8526
+width x8 Accuracy: 0.8654
+selected width x5
+
+Experiment Data augmentation width x5
+
+mode none
+ Accuracy: 0.8654
+
+mode rotation
+ Accuracy: 0.8205
+              precision    recall  f1-score   support
+
+      Benign       0.94      0.36      0.52        42
+   Malignant       0.81      0.99      0.89       114
+
+    accuracy                           0.82       156
+   macro avg       0.87      0.67      0.70       156
+weighted avg       0.84      0.82      0.79       156
+
+
+mode noise
+ Accuracy: 0.8077
+              precision    recall  f1-score   support
+
+      Benign       0.68      0.55      0.61        42
+   Malignant       0.84      0.90      0.87       114
+
+    accuracy                           0.81       156
+   macro avg       0.76      0.73      0.74       156
+weighted avg       0.80      0.81      0.80       156
+
+
+mode combined
+ Accuracy: 0.8397
+              precision    recall  f1-score   support
+
+      Benign       0.76      0.60      0.67        42
+   Malignant       0.86      0.93      0.89       114
+
+    accuracy                           0.84       156
+   macro avg       0.81      0.76      0.78       156
+weighted avg       0.83      0.84      0.83       156
+
