@@ -47,8 +47,10 @@ def get_data_loader(split, augment_mode='none', max_samples_ratio=1.0, random_se
         X_aug_list = []
         y_aug_list = []
 
-        # Initialize X_temp as a copy of the original X
-        # This ensures it exists even if we skip rotation
+        """
+        Initialize X_temp as a copy of the original X
+        This ensures it exists even if we skip rotation
+        """
         X_temp = X.copy()
 
         if augment_mode in ['rotation', 'parallel']:

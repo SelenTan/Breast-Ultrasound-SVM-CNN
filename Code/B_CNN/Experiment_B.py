@@ -32,8 +32,10 @@ def run_experiments():
     report_path = os.path.join(RESULT_DIR, "cnn_final_report.txt")
     report_file = open(report_path, "w", encoding="utf-8")
 
-    # first experiment checks model capacity by varying the network width
-    # we use the validation set to pick the best size
+    """ 
+     first experiment checks model capacity by varying the network width
+     we use the validation set to pick the best size
+    """
     width_options = [1, 2, 3, 4, 5, 6, 7, 8]
     val_accs = []
     
@@ -77,7 +79,7 @@ def run_experiments():
 
     # second experiment checks if data augmentation helps
     # we test rotation, noise, and both combined
-    aug_modes = ["none", "rotation", "noise", "combined"]
+    aug_modes = ["none", "rotation", "noise", "parallel"]
     aug_val_accs = []
     
     best_aug_mode = "none"

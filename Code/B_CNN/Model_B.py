@@ -127,7 +127,7 @@ def get_loader(split, augment_mode="none", max_samples_ratio=1.0, batch_size=64,
         datasets_to_concat = [base_dataset]
 
         # rotation augmentation branch
-        if augment_mode in ["rotation", "combined"]:
+        if augment_mode in ["rotation", "parallel"]:
             ds_rot = dataset_class(
                 split=split,
                 transform=rot_transform,
@@ -139,7 +139,7 @@ def get_loader(split, augment_mode="none", max_samples_ratio=1.0, batch_size=64,
             datasets_to_concat.append(ds_rot)
 
         # noise augmentation branch
-        if augment_mode in ["noise", "combined"]:
+        if augment_mode in ["noise", "parallel"]:
             ds_noise = dataset_class(
                 split=split,
                 transform=noise_transform,

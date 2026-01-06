@@ -192,8 +192,8 @@ def run_experiments():
     budget_accs = []
 
     for r in ratios:
-        # load a subset of the training data
-        # we stick to no augmentation here to keep the comparison clean
+        """ load a subset of the training data
+         we stick to no augmentation here to keep the comparison clean"""
         X_sub_raw, y_sub = get_data_loader('train', augment_mode='none', max_samples_ratio=r)
         X_sub_feat = extract_features(X_sub_raw, feature_type=winner_type)
         
