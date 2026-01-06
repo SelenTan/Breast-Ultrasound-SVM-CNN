@@ -1,146 +1,184 @@
 import os
 import matplotlib.pyplot as plt
 import numpy as np
-from sklearn.metrics import classification_report
+from sklearn.metrics import classification_report, confusion_matrix
+import seaborn as sns
 
-# import the cnn training runner
-# fallback import makes it work both as a script and as a module
 try:
-    from Model_B import train_eval_cnn
+    from Model_B import train_and_validate, run_test_evaluation
 except ImportError:
-    from .Model_B import train_eval_cnn
+    from .Model_B import train_and_validate, run_test_evaluation
 
+def plot_confusion_matrix(y_true, y_pred, model_name, save_path='./'):
+    # calculate the confusion matrix from true and predicted labels
+    cm = confusion_matrix(y_true, y_pred)
+    plt.figure(figsize=(6, 5))
+    
+    # plot a heatmap since it's easier to spot misclassifications
+    sns.heatmap(cm, annot=True, fmt='d', cmap='Blues',
+                xticklabels=['Benign', 'Malignant'], yticklabels=['Benign', 'Malignant'])
+    plt.title(f'Confusion Matrix for {model_name}')
+    plt.ylabel('True Label')
+    plt.xlabel('Predicted Label')
+    filename = f'{save_path}confusion_matrix_{model_name}.png'
+    plt.savefig(filename)
+    plt.close()
 
-# store all model B outputs here
-# figures and logs end up in this folder
 RESULT_DIR = "Results_B"
 os.makedirs(RESULT_DIR, exist_ok=True)
-
-# keep epochs fixed so comparisons are about the thing we changed
 EPOCHS = 15
 
-
 def run_experiments():
-    # runs the full set of cnn experiments for the report
-    # we test capacity, augmentation, and training budget in separate blocks
-
-    # write a detailed log for later copy paste into the report
     report_path = os.path.join(RESULT_DIR, "cnn_final_report.txt")
     report_file = open(report_path, "w", encoding="utf-8")
 
-    # capacity experiment
-    # width_mult scales channel count so it is basically model size
+    # first experiment checks model capacity by varying the network width
+    # we use the validation set to pick the best size
     width_options = [1, 2, 3, 4, 5, 6, 7, 8]
-    capacity_accs = []
+    val_accs = []
+    
+    # keep track of the best model weights so we don't have to retrain later
+    best_val_acc = 0.0
+    winner_width = 1
+    winner_state = None
 
-    # loop over widths and collect the test accuracy for each one
     for width_mult in width_options:
-        acc, _, _ = train_eval_cnn(
+        # train on train, check on val, get the best epoch's weights
+        v_acc, state = train_and_validate(
             width_mult=width_mult,
             augment_mode="none",
-            epochs=EPOCHS,
+            epochs=EPOCHS
         )
-        capacity_accs.append(acc)
+        val_accs.append(v_acc)
+        
+        # update our winner if this width performed better
+        if v_acc > best_val_acc:
+            best_val_acc = v_acc
+            winner_width = width_mult
+            winner_state = state
 
-    # pick the best width based on test accuracy from the sweep
-    winner_idx = int(np.argmax(capacity_accs))
-    winner_width = width_options[winner_idx]
-    winner_acc_base = capacity_accs[winner_idx]
-    
-    print(f"Capacity Analysis. Winner Width = x{winner_width} (Acc: {winner_acc_base:.4f})")
+    print(f"selected width: x{winner_width}")
 
-    # log the sweep results so we can quote exact numbers later
-    report_file.write("Experiment Model capacity\n")
-    for width_mult, acc in zip(width_options, capacity_accs):
-        report_file.write(f"width x{width_mult} Accuracy: {acc:.4f}\n")
-    report_file.write(f"selected width x{winner_width}\n\n")
+    report_file.write("Experiment Model capacity (Validation Results)\n")
+    for width_mult, acc in zip(width_options, val_accs):
+        report_file.write(f"Width x{width_mult} Val Accuracy: {acc:.4f}\n")
+    report_file.write(f"Selected width x{winner_width}\n\n")
 
-    # plot capacity vs accuracy
+    # visualize the capacity sweep
     plt.figure()
-    plt.plot(width_options, capacity_accs, marker="o")
+    plt.plot(width_options, val_accs, marker="o")
     plt.xticks(width_options)
-    plt.title("CNN Model Capacity (Channel Width)")
+    plt.title("CNN Capacity Selection")
     plt.xlabel("Width multiplier")
-    plt.ylabel("Test accuracy")
+    plt.ylabel("Accuracy")
     plt.grid(True)
-    plt.savefig(os.path.join(RESULT_DIR, "exp1_capacity.png"))
+    plt.savefig(os.path.join(RESULT_DIR, "exp1_capacity_val.png"))
     plt.close()
 
-    # Augmentation experiment
-    # reuse the winner width so we are only testing augmentation effects
+    # second experiment checks if data augmentation helps
+    # we test rotation, noise, and both combined
     aug_modes = ["none", "rotation", "noise", "combined"]
-    aug_accs = []
+    aug_val_accs = []
+    
+    best_aug_mode = "none"
+    best_aug_val_acc = 0.0
+    # we need the absolute best weights found here for the final test run
+    best_overall_state = None 
 
-    report_file.write(f"Experiment Data augmentation width x{winner_width}\n")
+    report_file.write(f"Experiment Data augmentation width x{winner_width} (Validation)\n")
 
     for mode in aug_modes:
-        # for none, reuse the best result from the capacity sweep
-        # avoids retraining the exact same setup twice
+        # optimization: if mode is 'none', we already ran it in exp 1
         if mode == "none":
-            aug_accs.append(winner_acc_base)
-            report_file.write(f"\nmode {mode}\n")
-            report_file.write(f" Accuracy: {winner_acc_base:.4f}\n")
-            continue
-
-        # train with the chosen augmentation and dump a full classification report
-        acc, y_true, y_pred = train_eval_cnn(
-            width_mult=winner_width,
-            augment_mode=mode,
-            epochs=EPOCHS,
-        )
-        aug_accs.append(acc)
-
-        report_file.write(f"\nmode {mode}\n")
-        report_file.write(f" Accuracy: {acc:.4f}\n")
-        report_file.write(
-            classification_report(
-                y_true,
-                y_pred,
-                target_names=["Benign", "Malignant"],
+            acc = best_val_acc 
+            state = winner_state
+        else:
+            acc, state = train_and_validate(
+                width_mult=winner_width,
+                augment_mode=mode,
+                epochs=EPOCHS
             )
-        )
-        report_file.write("\n")
 
-    print(f"Augmentation Analysis. Best Mode Acc: {max(aug_accs):.4f}")
+        aug_val_accs.append(acc)
+        report_file.write(f"Mode {mode}: {acc:.4f}\n")
 
-    # bar chart is clearer here since modes are discrete categories
+        # save the best performing model configuration
+        if acc > best_aug_val_acc:
+            best_aug_val_acc = acc
+            best_aug_mode = mode
+            best_overall_state = state
+
+    print(f"best augmentation mode: {best_aug_mode}")
+
     plt.figure()
-    plt.bar(aug_modes, aug_accs)
-    plt.title(f"augmentation impact")
-    plt.ylabel("Test accuracy")
-
-    # tighten y range so small gaps between modes are visible
-    min_v, max_v = min(aug_accs), max(aug_accs)
+    plt.bar(aug_modes, aug_val_accs, color=['gray', 'orange', 'purple', 'red'])
+    plt.title(f"Augmentation Impact")
+    plt.ylabel("Accuracy")
+    
+    # format the plot to make differences visible
+    min_v, max_v = min(aug_val_accs), max(aug_val_accs)
     margin = (max_v - min_v) * 0.2 if max_v != min_v else 0.05
     plt.ylim(max(0, min_v - margin), min(1.0, max_v + margin))
-
-    # add numbers on bars so the figure can be read without the log file
-    for i, v in enumerate(aug_accs):
+    
+    for i, v in enumerate(aug_val_accs):
         plt.text(i, v, f"{v:.4f}", ha="center", va="bottom")
-
-    plt.savefig(os.path.join(RESULT_DIR, "exp2_augmentation.png"))
+    plt.savefig(os.path.join(RESULT_DIR, "exp2_augmentation_val.png"))
     plt.close()
 
-    # training budget experiment
-    # vary how much training data we allow, everything else stays the same
+    """ final step: run the absolute best model on the test set
+    # this is the only time the test set is used
+    # load the weights from the best run (best width + best augmentation) """
+    final_acc, final_y_true, final_y_pred = run_test_evaluation(
+        width_mult=winner_width,
+        model_state=best_overall_state,
+        augment_mode=best_aug_mode 
+    )
+
+    print(f"final test accuracy: {final_acc:.4f}")
+
+    # write the final report
+    report_file.write("\n==========================================\n")
+    report_file.write("FINAL EVALUATION ON TEST SET\n")
+    report_file.write("==========================================\n")
+    report_file.write(f"Parameters: Width x{winner_width}, Augmentation: {best_aug_mode}\n")
+    report_file.write(f"TEST ACCURACY: {final_acc:.4f}\n\n")
+    report_file.write("Classification Report:\n")
+    report_file.write(
+        classification_report(
+            final_y_true,
+            final_y_pred,
+            target_names=["Benign", "Malignant"],
+            zero_division=0
+        )
+    )
+
+    # generate the confusion matrix
+    plot_confusion_matrix(
+        final_y_true,  final_y_pred, f"CNN", 
+        save_path=os.path.join(RESULT_DIR, '')
+    )
+
+    # experiment 3 generates a learning curve
+    # this shows how performance scales with data size
     ratios = [0.1, 0.25, 0.5, 0.75, 1.0]
     budget_accs = []
 
     for train_fraction in ratios:
-        acc, _, _ = train_eval_cnn(
+        # train a fresh model with limited data
+        # finding the best epoch on val, then testing on test
+        _, state = train_and_validate(
             width_mult=winner_width,
-            augment_mode="none",
+            augment_mode="none", # keep augmentation off for a clean comparison
             max_samples_ratio=train_fraction,
             epochs=EPOCHS,
         )
-        budget_accs.append(acc)
         
-    print(f"Budget Analysis. Full Data Acc: {budget_accs[-1]:.4f}")
+        acc, _, _ = run_test_evaluation(winner_width, state)
+        budget_accs.append(acc)
 
-    # learning curve style plot
     plt.figure()
-    plt.plot(ratios, budget_accs, marker="s")
-    plt.title(f"Learning curve")
+    plt.plot(ratios, budget_accs, marker="s", color='green')
+    plt.title(f"Learning curve (Test Set)")
     plt.xlabel("Fraction of training data")
     plt.ylabel("Test accuracy")
     plt.grid(True)
@@ -148,10 +186,6 @@ def run_experiments():
     plt.close()
 
     report_file.close()
-
-    # summary to know what got picked and where outputs went
-    print(f"capacity winner width x{winner_width}  Accuracy: {winner_acc_base:.4f}")
-
 
 if __name__ == "__main__":
     run_experiments()
