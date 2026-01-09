@@ -40,8 +40,8 @@ Execute the following command in terminal: python main.py
 
 ## Execution Process:
 - The script first checks if the Datasets folder exists.
-- It first executes Task A (SVM). Results and plots are saved to Code/A_SVM/Results_A/.
-- then executes Task B (CNN). Results and plots are saved to Code/B_CNN/Results_B/.
+- It first executes Task A. Results and plots are saved to Code/A_SVM/Results_A/.
+- Then executes Task B. Results and plots are saved to Code/B_CNN/Results_B/.
 
 ## Required Packages
 This project uses the following libraries:
@@ -52,4 +52,5 @@ This project uses the following libraries:
 - matplotlib
 - numpy
 - seaborn
+
 
