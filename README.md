@@ -1,8 +1,8 @@
 ## Project Overview
 This project benchmarks two machine learning models on the BreastMNIST dataset. The goal is to compare a classical approach against a deep learning approach under various conditions.
 
-* **Task A (Category A):** Support Vector Machine (SVM)
-* **Task B (Category B):** Convolutional Neural Network (SimpleCNN)
+* **Task A:** Support Vector Machine (SVM)
+* **Task B:** Convolutional Neural Network (SimpleCNN)
 
 The project analyzes the impact of model capacity, data augmentation (random rotation, Gaussian noise), and training budget(different fraction of training data) on performance.
 
@@ -11,7 +11,7 @@ The project analyzes the impact of model capacity, data augmentation (random rot
 
 ## Repository Structure
 The project is organized as follows:
-
+```
 AMLS_25_26_SN25187537/
 ├── Code/
 │   ├── A_SVM/
@@ -25,17 +25,17 @@ AMLS_25_26_SN25187537/
 ├── Datasets/                # Folder where BreastMNIST data will be stored.
 ├── main.py                  # The entry point script. Orchestrates the execution of both Task A and Task B.
 └── README.md                # Project documentation and setup instructions.
-
+```
 ## Installation and Setup
 To reproduce the results, please set up the environment using the provided configuration file.
 
-**Step 1 Create the environment**
+**Step 1 Create the environment:**
 Use the command: conda env create -f environment.yml
 
-**Step 2 Activate the environment**
+**Step 2 Activate the environment:**
 Use the command: conda activate AMLS_Final
 
-**step 3 Run the pipeline**
+**Step 3 Run the pipeline**
 Execute the following command in terminal: python main.py
 
 ## Execution Process:
@@ -52,3 +52,4 @@ This project uses the following libraries:
 - matplotlib
 - numpy
 - seaborn
+
