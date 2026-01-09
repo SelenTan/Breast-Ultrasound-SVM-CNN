@@ -7,16 +7,14 @@ import medmnist
 from medmnist import INFO
 import numpy as np
 import random
-import os
 
-# basic config shared across experiments
 DATA_ROOT = "../../Datasets"
 DATA_FLAG = "breastmnist"
 DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 
 def set_seed(seed=42):
-    # keep randomness under control so repeated runs are comparable
+    # set seeds so repeated runs are comparable
     random.seed(seed)
     np.random.seed(seed)
     torch.manual_seed(seed)
@@ -71,89 +69,50 @@ class SimpleCNN(nn.Module):
         x = self.layer1(x)
         x = self.layer2(x)
 
-        # flatten per sample while keeping batch dimension
         x = x.view(x.size(0), -1)
         return self.fc(x)
-
 
 def get_loader(split, augment_mode="none", max_samples_ratio=1.0, batch_size=64, seed=42):
     # build a dataloader with optional augmentation and data subsampling
     # augmentation is only applied to the train split
     set_seed(seed)
-
     info = INFO[DATA_FLAG]
     dataset_class = getattr(medmnist, info["python_class"])
 
     # base pipeline used for raw images, validation, and test
-    base_transform = transforms.Compose([
+    transform_list = [
         transforms.ToTensor(),
         transforms.Normalize(mean=[0.5], std=[0.5])
-    ])
+    ]
 
-    # rotation pipeline runs on PIL before tensor conversion
-    rot_transform = transforms.Compose([
-        transforms.RandomRotation(degrees=15),
-        transforms.ToTensor(),
-        transforms.Normalize(mean=[0.5], std=[0.5])
-    ])
+    if split == "train":
+        if augment_mode == "rotation":
+            transform_list.insert(0, transforms.RandomRotation(degrees=15))
+            
+        elif augment_mode == "noise": 
+            transform_list.append(AddGaussianNoise(mean=0.0, std=0.1))
+            
+        elif augment_mode == "parallel":
+            transform_list.insert(0, transforms.RandomRotation(degrees=15))
+            transform_list.append(AddGaussianNoise(mean=0.0, std=0.1))
 
-    # noise pipeline works on tensors after normalization
-    # kept consistent with Model A noise logic
-    noise_transform = transforms.Compose([
-        transforms.ToTensor(),
-        transforms.Normalize(mean=[0.5], std=[0.5]),
-        AddGaussianNoise(mean=0.0, std=0.1)
-    ])
+    final_transform = transforms.Compose(transform_list)
 
-    # load the base dataset first so we can reuse indices if needed
-    base_dataset = dataset_class(
+    dataset = dataset_class(
+        # load the base dataset first so we can reuse indices if needed
         split=split,
-        transform=base_transform,
+        transform=final_transform,
         download=True,
         root=DATA_ROOT
     )
 
-    # handle training budget by selecting a fixed subset of indices
-    indices = np.arange(len(base_dataset))
+    # training budget
     if split == "train" and max_samples_ratio < 1.0:
-        sample_count = int(len(base_dataset) * max_samples_ratio)
-        indices = np.random.choice(len(base_dataset), sample_count, replace=False)
-        base_dataset = data.Subset(base_dataset, indices)
+        sample_count = int(len(dataset) * max_samples_ratio)
+        indices = np.random.choice(len(dataset), sample_count, replace=False)
+        dataset = data.Subset(dataset, indices)
 
-    final_dataset = base_dataset
-
-    # build augmented datasets only for training
-    if split == "train" and augment_mode != "none":
-        datasets_to_concat = [base_dataset]
-
-        # rotation augmentation branch
-        if augment_mode in ["rotation", "parallel"]:
-            ds_rot = dataset_class(
-                split=split,
-                transform=rot_transform,
-                root=DATA_ROOT
-            )
-            # reuse the same indices so augmentation matches the same images
-            if max_samples_ratio < 1.0:
-                ds_rot = data.Subset(ds_rot, indices)
-            datasets_to_concat.append(ds_rot)
-
-        # noise augmentation branch
-        if augment_mode in ["noise", "parallel"]:
-            ds_noise = dataset_class(
-                split=split,
-                transform=noise_transform,
-                root=DATA_ROOT
-            )
-            if max_samples_ratio < 1.0:
-                ds_noise = data.Subset(ds_noise, indices)
-            datasets_to_concat.append(ds_noise)
-
-        # combined mode ends up stacking original, rotated, and noisy samples
-        final_dataset = data.ConcatDataset(datasets_to_concat)
-
-    shuffle = (split == "train")
-    loader = data.DataLoader(final_dataset, batch_size=batch_size, shuffle=shuffle)
+    loader = data.DataLoader(dataset, batch_size=batch_size, shuffle=(split == "train"))
     return loader
 
 
@@ -166,7 +125,7 @@ def evaluate_loader(model, loader):
     with torch.no_grad():
         for images, labels in loader:
             images = images.to(DEVICE)
-            labels = labels.squeeze().long().to(DEVICE)
+            labels = labels.squeeze(-1).long().to(DEVICE)
 
             logits = model(images)
             predicted = torch.argmax(logits, dim=1)
@@ -199,7 +158,7 @@ def train_and_validate(width_mult=1.0, augment_mode="none", max_samples_ratio=1.
         model.train()
         for images, labels in train_loader:
             images = images.to(DEVICE)
-            labels = labels.squeeze().long().to(DEVICE)
+            labels = labels.squeeze(-1).long().to(DEVICE)
 
             optimizer.zero_grad()
             logits = model(images)
@@ -209,7 +168,7 @@ def train_and_validate(width_mult=1.0, augment_mode="none", max_samples_ratio=1.
 
         val_acc, _, _ = evaluate_loader(model, val_loader)
 
-        # keep the best performing model state
+        # note the best performing model 
         if val_acc > best_val_acc:
             best_val_acc = val_acc
             best_model_state = model.state_dict()
@@ -217,7 +176,7 @@ def train_and_validate(width_mult=1.0, augment_mode="none", max_samples_ratio=1.
     return best_val_acc, best_model_state
 
 
-def run_test_evaluation(width_mult, model_state, augment_mode="none"):
+def run_test_evaluation(width_mult, model_state):
     # reload the selected model and evaluate once on the test set
     model = SimpleCNN(width_mult=width_mult).to(DEVICE)
     model.load_state_dict(model_state)

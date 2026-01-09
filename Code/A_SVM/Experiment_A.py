@@ -14,123 +14,115 @@ if not os.path.exists(RESULT_DIR):
     os.makedirs(RESULT_DIR)
 
 def plot_confusion_matrix(y_true, y_pred, model_name, save_path='./'):
-    # calculate the confusion matrix from true and predicted labels
+    # compute confusion matrix from ground truth and predictions
     cm = confusion_matrix(y_true, y_pred)
     plt.figure(figsize=(6, 5))
     
-    # use a heatmap because it makes reading the errors much easier
+    # visualize the matrix as a heatmap for better readability
     sns.heatmap(cm, annot=True, fmt='d', cmap='Blues',
                 xticklabels=['Benign', 'Malignant'], yticklabels=['Benign', 'Malignant'])
     plt.title(f'Confusion Matrix: {model_name}')
     plt.ylabel('True Label')
     plt.xlabel('Predicted Label')
-    filename = f'{save_path}confusion_matrix_{model_name}.png'
+    
+    filename = os.path.join(save_path, f'confusion_matrix_{model_name}.png')
     plt.savefig(filename)
     plt.close()
 
 def run_experiments():
     report_file = open(os.path.join(RESULT_DIR, 'svm_final_report.txt'), 'w')
 
-    # load the three dataset splits
-    # train is for learning parameters
-    # val is for tuning hyperparameters like C or features
-    # test is locked away until the very end
+    """initialize data loaders for training and validation sets
+     training set is used for parameter learning
+     validation set is strictly for hyperparameter tuning"""
     X_train_raw, y_train_raw = get_data_loader('train', augment_mode='none')
     X_val_raw, y_val = get_data_loader('val', augment_mode='none')
-    X_test_raw, y_test = get_data_loader('test', augment_mode='none')
 
-    # first experiment is checking model capacity
-    # we need to find the best regularization parameter c
     C_values = [0.1, 0.5, 1, 2, 5, 10, 50, 100]
-    acc_scores_val = []
-
+    
+    # combined experiment 1 and 2
+    # find optimal c for both raw and hog features
+    
+    # evaluate performance using raw pixel features
+    acc_scores_raw = []
     for c in C_values:
-        # train on train set and evaluate on validation set
         acc, _ = train_and_predict(X_train_raw, y_train_raw, X_val_raw, y_val, C_value=c)
-        acc_scores_val.append(acc)
+        acc_scores_raw.append(acc)
 
-    # find the c value that gave the highest validation accuracy
-    best_c_idx = np.argmax(acc_scores_val)
-    best_c = C_values[best_c_idx]
-    print(f"selected C = {best_c}")
+    best_c_raw_idx = np.argmax(acc_scores_raw)
+    best_c_raw = C_values[best_c_raw_idx]
+    best_acc_raw = acc_scores_raw[best_c_raw_idx]
+    print(f"best C for RAW: {best_c_raw} with acc {best_acc_raw:.4f}")
 
-    # plot the results so we can see the trend
-    plt.figure(figsize=(7, 5))
-    C_labels = [str(c) for c in C_values]
-    plt.plot(range(len(C_values)), acc_scores_val, marker='o', color='#1f77b4')
-    plt.xticks(range(len(C_values)), C_labels)
-    plt.title('SVM Capacity')
-    plt.xlabel('C Parameter')
-    plt.ylabel('Accuracy')
-    plt.grid(True, linestyle='--', alpha=0.7)
-    plt.savefig(os.path.join(RESULT_DIR, 'exp1_capacity_val.png'))
-    plt.close()
-
-    # second experiment compares feature extraction methods
-    # we check if raw pixels or hog features work better
-    # check performance of raw pixels on validation set
-    acc_raw_val, _ = train_and_predict(X_train_raw, y_train_raw, X_val_raw, y_val, C_value=best_c)
-
-    # check performance of hog features on validation set
+    # evaluate performance using hog features
     X_train_hog = extract_features(X_train_raw, 'hog')
     X_val_hog = extract_features(X_val_raw, 'hog')
-    acc_hog_val, _ = train_and_predict(X_train_hog, y_train_raw, X_val_hog, y_val, C_value=best_c)
+    
+    acc_scores_hog = []
+    for c in C_values:
+        acc, _ = train_and_predict(X_train_hog, y_train_raw, X_val_hog, y_val, C_value=c)
+        acc_scores_hog.append(acc)
+        
+    best_c_hog_idx = np.argmax(acc_scores_hog)
+    best_c_hog = C_values[best_c_hog_idx]
+    best_acc_hog = acc_scores_hog[best_c_hog_idx]
+    print(f"best C for HOG: {best_c_hog} with acc {best_acc_hog:.4f}")
 
-    # decide the winner based purely on validation scores
-    if acc_hog_val > acc_raw_val:
+    plt.figure(figsize=(7, 5))
+    C_labels = [str(c) for c in C_values]
+    plt.plot(range(len(C_values)), acc_scores_raw, marker='o', label='Raw', color='gray')
+    plt.plot(range(len(C_values)), acc_scores_hog, marker='s', label='HOG', color='blue')
+    plt.xticks(range(len(C_values)), C_labels)
+    plt.title('SVM Capacity Selection')
+    plt.xlabel('C Parameter')
+    plt.ylabel('Validation Accuracy')
+    plt.legend()
+    plt.grid(True, linestyle='--', alpha=0.7)
+    plt.savefig(os.path.join(RESULT_DIR, 'exp1_capacity_comparison.png'))
+    plt.close()
+
+    # select the superior feature extraction method based on validation accuracy
+    if best_acc_hog > best_acc_raw:
         winner_type = 'hog'
+        best_c = best_c_hog
+        best_val_acc = best_acc_hog
         print(f"feature winner: HOG")
     else:
         winner_type = 'raw'
+        best_c = best_c_raw
+        best_val_acc = best_acc_raw
         print(f"feature winner: RAW")
 
-    # save these stats to the report file
     report_file.write("Experiment Feature pipelines (Validation Results)\n")
-    report_file.write(f"Raw Val Accuracy: {acc_raw_val:.4f}\n")
-    report_file.write(f"HOG Val Accuracy: {acc_hog_val:.4f}\n")
+    report_file.write(f"Raw Best Acc: {best_acc_raw:.4f} (C={best_c_raw})\n")
+    report_file.write(f"HOG Best Acc: {best_acc_hog:.4f} (C={best_c_hog})\n")
     report_file.write(f"Selected winner: {winner_type}\n\n")
 
-    # bar chart for visual comparison
-    plt.figure()
-    bars= plt.bar(['Raw Pixels', 'HOG Features'], [acc_raw_val, acc_hog_val], color=['gray', 'blue'])
-    plt.title('Feature Pipeline Comparison')
-    plt.ylabel('Accuracy')
-    plt.ylim(0, 1.0)
-    # loop over the bars to add the accuracy numbers
-    for bar in bars:
-        height = bar.get_height()
-        plt.text(bar.get_x() + bar.get_width()/2., height,
-                 f'{height:.4f}',
-                 ha='center', va='bottom')
-    plt.savefig(os.path.join(RESULT_DIR, 'exp2_features_val.png'))
-    plt.close()
-
-    # third experiment checks if data augmentation helps
-    # we apply rotation and noise to training data and check validation score
+    # experiment 3 investigates data augmentation impact
+    # rotation and noise are applied to training data to assess validation improvement
     aug_modes = ['none', 'rotation', 'noise', 'parallel']
     aug_val_accs = []
     
     best_aug_mode = 'none'
     best_val_acc_so_far = 0.0
 
-    # prepare validation features using the winner from the previous step
+    # set validation features based on the winner from previous experiment
     if winner_type == 'hog':
         X_val_feat = X_val_hog
     else:
         X_val_feat = X_val_raw
 
     for mode in aug_modes:
-        # get a fresh loader with the specific augmentation applied
-        X_train_aug_raw, y_train_aug = get_data_loader('train', augment_mode=mode)
+        X_train_aug_raw, y_train_aug = get_data_loader('train', augment_mode=mode) # retrieve fresh loader with specific augmentation strategy applied
         
-        # extract features for this new training set
+        # apply feature extraction to the augmented training set
         X_train_aug_feat = extract_features(X_train_aug_raw, feature_type=winner_type)
 
-        # train and validate
+        # train and validate using optimal c parameter found earlier
         acc, _ = train_and_predict(X_train_aug_feat, y_train_aug, X_val_feat, y_val, C_value=best_c)
         aug_val_accs.append(acc)
 
-        # keep track of the best performing mode
+        # track the best performing augmentation strategy
         if acc > best_val_acc_so_far:
             best_val_acc_so_far = acc
             best_aug_mode = mode
@@ -143,26 +135,26 @@ def run_experiments():
 
     plt.figure()
     plt.bar(aug_modes, aug_val_accs, color=['gray', 'orange', 'purple', 'red'])
-    plt.title(f'Augmentation Impact')
-    plt.ylabel('Accuracy')
+    plt.title(f'Augmentation Impact ({winner_type})')
+    plt.ylabel('Validation Accuracy')
+    
+    # adjust y axis limits for better visual differentiation
     min_val, max_val = min(aug_val_accs), max(aug_val_accs)
     margin = (max_val - min_val) * 0.2 if max_val != min_val else 0.05
     plt.ylim(max(0, min_val - margin), min(1.0, max_val + margin))
+    
     for i, v in enumerate(aug_val_accs):
         plt.text(i, v, f"{v:.4f}", ha="center", va="bottom")
     plt.savefig(os.path.join(RESULT_DIR, 'exp3_augmentation_val.png'))
     plt.close()
 
-    """" finally we run the evaluation on the test set
-     this is done only once with the best parameters we found 
-     load the full training set with the best augmentation """
-    X_train_final_raw, y_train_final = get_data_loader('train', augment_mode=best_aug_mode)
-    
-    # extract features for both train and test
-    X_train_final_feat = extract_features(X_train_final_raw, feature_type=winner_type)
+    # final evaluation phase on test data
+    X_test_raw, y_test = get_data_loader('test', augment_mode='none')
     X_test_feat = extract_features(X_test_raw, feature_type=winner_type)
+    X_train_final_raw, y_train_final = get_data_loader('train', augment_mode=best_aug_mode)
+    X_train_final_feat = extract_features(X_train_final_raw, feature_type=winner_type)
 
-    # train the final model and get the score
+    # train final model and obtain performance metrics
     final_acc, final_preds = train_and_predict(
         X_train_final_feat, y_train_final, 
         X_test_feat, y_test, 
@@ -171,7 +163,7 @@ def run_experiments():
 
     print(f"final test accuracy: {final_acc:.4f}")
 
-    # write all the final details to the report
+    # generate comprehensive final report
     report_file.write("\n==========================================\n")
     report_file.write("FINAL EVALUATION ON TEST SET\n")
     report_file.write("==========================================\n")
@@ -183,26 +175,25 @@ def run_experiments():
     report_file.write("Classification Report:\n")
     report_file.write(classification_report(y_test, final_preds, target_names=['Benign', 'Malignant']))
 
-    # save the confusion matrix image
-    plot_confusion_matrix(y_test, final_preds, "SVM", save_path=os.path.join(RESULT_DIR, ''))
+    # visualize confusion matrix for test results
+    plot_confusion_matrix(y_test, final_preds, "SVM", save_path=RESULT_DIR)
 
-    # last experiment checks how the model learns with different amounts of data
-    # this is just for analysis and doesn't change our model choice
+    # experiment 4 learning curve analysis
+    # evaluates true performance on test set across different data budgets
     ratios = [0.1, 0.25, 0.5, 0.75, 1.0]
     budget_accs = []
 
     for r in ratios:
-        """ load a subset of the training data
-         we stick to no augmentation here to keep the comparison clean"""
         X_sub_raw, y_sub = get_data_loader('train', augment_mode='none', max_samples_ratio=r)
         X_sub_feat = extract_features(X_sub_raw, feature_type=winner_type)
         
+        # evaluate performance on test set
         acc, _ = train_and_predict(X_sub_feat, y_sub, X_test_feat, y_test, C_value=best_c)
         budget_accs.append(acc)
 
     plt.figure()
     plt.plot(ratios, budget_accs, marker='s', color='green')
-    plt.title(f'Learning Curve (Test Set)')
+    plt.title(f'Learning Curve')
     plt.xlabel('Fraction of Training Data')
     plt.ylabel('Test Accuracy')
     plt.grid(True)

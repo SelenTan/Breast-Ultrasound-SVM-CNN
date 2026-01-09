@@ -20,7 +20,8 @@ def plot_confusion_matrix(y_true, y_pred, model_name, save_path='./'):
     plt.title(f'Confusion Matrix for {model_name}')
     plt.ylabel('True Label')
     plt.xlabel('Predicted Label')
-    filename = f'{save_path}confusion_matrix_{model_name}.png'
+    
+    filename = os.path.join(save_path, f'confusion_matrix_{model_name}.png')
     plt.savefig(filename)
     plt.close()
 
@@ -45,7 +46,7 @@ def run_experiments():
     winner_state = None
 
     for width_mult in width_options:
-        # train on train, check on val, get the best epoch's weights
+        # to get the best epoch's weights
         v_acc, state = train_and_validate(
             width_mult=width_mult,
             augment_mode="none",
@@ -77,7 +78,7 @@ def run_experiments():
     plt.savefig(os.path.join(RESULT_DIR, "exp1_capacity_val.png"))
     plt.close()
 
-    # second experiment checks if data augmentation helps
+    # experiment 2 checks if data augmentation helps
     # we test rotation, noise, and both combined
     aug_modes = ["none", "rotation", "noise", "parallel"]
     aug_val_accs = []
@@ -90,7 +91,7 @@ def run_experiments():
     report_file.write(f"Experiment Data augmentation width x{winner_width} (Validation)\n")
 
     for mode in aug_modes:
-        # optimization: if mode is 'none', we already ran it in exp 1
+        # if mode is 'none', we already ran it in exp 1
         if mode == "none":
             acc = best_val_acc 
             state = winner_state
@@ -132,8 +133,7 @@ def run_experiments():
     # load the weights from the best run (best width + best augmentation) """
     final_acc, final_y_true, final_y_pred = run_test_evaluation(
         width_mult=winner_width,
-        model_state=best_overall_state,
-        augment_mode=best_aug_mode 
+        model_state=best_overall_state
     )
 
     print(f"final test accuracy: {final_acc:.4f}")
@@ -157,7 +157,7 @@ def run_experiments():
     # generate the confusion matrix
     plot_confusion_matrix(
         final_y_true,  final_y_pred, f"CNN", 
-        save_path=os.path.join(RESULT_DIR, '')
+        save_path=RESULT_DIR
     )
 
     # experiment 3 generates a learning curve
@@ -180,7 +180,7 @@ def run_experiments():
 
     plt.figure()
     plt.plot(ratios, budget_accs, marker="s", color='green')
-    plt.title(f"Learning curve (Test Set)")
+    plt.title(f"Learning curve")
     plt.xlabel("Fraction of training data")
     plt.ylabel("Test accuracy")
     plt.grid(True)
