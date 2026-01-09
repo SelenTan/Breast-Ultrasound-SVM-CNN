@@ -35,7 +35,7 @@ Use the command: conda env create -f environment.yml
 **Step 2 Activate the environment:**
 Use the command: conda activate AMLS_Final
 
-**Step 3 Run the pipeline**
+**Step 3 Run the pipeline:**
 Execute the following command in terminal: python main.py
 
 ## Execution Process:
@@ -52,5 +52,6 @@ This project uses the following libraries:
 - matplotlib
 - numpy
 - seaborn
+
 
 
