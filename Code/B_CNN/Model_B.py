@@ -84,7 +84,7 @@ def get_loader(split, augment_mode="none", max_samples_ratio=1.0, batch_size=64,
         transforms.ToTensor(),
         transforms.Normalize(mean=[0.5], std=[0.5])
     ]
-
+    # Augmentations:
     if split == "train":
         if augment_mode == "rotation":
             transform_list.insert(0, transforms.RandomRotation(degrees=15))
@@ -156,7 +156,7 @@ def train_and_validate(width_mult=1.0, augment_mode="none", max_samples_ratio=1.
 
     for _ in range(epochs):
         model.train()
-        for images, labels in train_loader:
+        for images, labels in train_loader: #for every batch
             images = images.to(DEVICE)
             labels = labels.squeeze(-1).long().to(DEVICE)
 

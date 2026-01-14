@@ -1,16 +1,16 @@
 Experiment Model capacity (Validation Results)
 Width x1 Val Accuracy: 0.8590
-Width x2 Val Accuracy: 0.8846
-Width x3 Val Accuracy: 0.8974
+Width x2 Val Accuracy: 0.8718
+Width x3 Val Accuracy: 0.9103
 Width x4 Val Accuracy: 0.7308
 Width x5 Val Accuracy: 0.8462
-Width x6 Val Accuracy: 0.8718
+Width x6 Val Accuracy: 0.8974
 Width x7 Val Accuracy: 0.8974
 Width x8 Val Accuracy: 0.8718
 Selected width x3
 
 Experiment Data augmentation width x3 (Validation)
-Mode none: 0.8974
+Mode none: 0.9103
 Mode rotation: 0.8846
 Mode noise: 0.8718
 Mode parallel: 0.8718

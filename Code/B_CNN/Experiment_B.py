@@ -26,7 +26,7 @@ def plot_confusion_matrix(y_true, y_pred, model_name, save_path='./'):
     plt.close()
 
 RESULT_DIR = "Results_B"
-os.makedirs(RESULT_DIR, exist_ok=True)
+os.makedirs(RESULT_DIR, exist_ok=True) # path exist
 EPOCHS = 15
 
 def run_experiments():
@@ -35,7 +35,7 @@ def run_experiments():
 
     """ 
      first experiment checks model capacity by varying the network width
-     we use the validation set to pick the best size
+     use the validation set to pick the best size
     """
     width_options = [1, 2, 3, 4, 5, 6, 7, 8]
     val_accs = []
@@ -73,13 +73,13 @@ def run_experiments():
     plt.xticks(width_options)
     plt.title("CNN Capacity Selection")
     plt.xlabel("Width multiplier")
-    plt.ylabel("Accuracy")
+    plt.ylabel("Validation Accuracy")
     plt.grid(True)
-    plt.savefig(os.path.join(RESULT_DIR, "exp1_capacity_val.png"))
+    plt.savefig(os.path.join(RESULT_DIR, "CNN_exp1_capacity_val.png"))
     plt.close()
 
     # experiment 2 checks if data augmentation helps
-    # we test rotation, noise, and both combined
+    # test rotation, noise, and both combined
     aug_modes = ["none", "rotation", "noise", "parallel"]
     aug_val_accs = []
     
@@ -91,7 +91,7 @@ def run_experiments():
     report_file.write(f"Experiment Data augmentation width x{winner_width} (Validation)\n")
 
     for mode in aug_modes:
-        # if mode is 'none', we already ran it in exp 1
+        # if mode is 'none', already ran it in exp 1
         if mode == "none":
             acc = best_val_acc 
             state = winner_state
@@ -115,8 +115,8 @@ def run_experiments():
 
     plt.figure()
     plt.bar(aug_modes, aug_val_accs, color=['gray', 'orange', 'purple', 'red'])
-    plt.title(f"Augmentation Impact")
-    plt.ylabel("Accuracy")
+    plt.title(f"CNN Augmentation Impact")
+    plt.ylabel("Validation Accuracy")
     
     # format the plot to make differences visible
     min_v, max_v = min(aug_val_accs), max(aug_val_accs)
@@ -125,7 +125,7 @@ def run_experiments():
     
     for i, v in enumerate(aug_val_accs):
         plt.text(i, v, f"{v:.4f}", ha="center", va="bottom")
-    plt.savefig(os.path.join(RESULT_DIR, "exp2_augmentation_val.png"))
+    plt.savefig(os.path.join(RESULT_DIR, "CNN_exp2_augmentation_val.png"))
     plt.close()
 
     """ final step: run the absolute best model on the test set
@@ -162,7 +162,7 @@ def run_experiments():
 
     # experiment 3 generates a learning curve
     # this shows how performance scales with data size
-    ratios = [0.1, 0.25, 0.5, 0.75, 1.0]
+    ratios = [0.1, 0.2,0.3,0.4, 0.5,0.6, 0.7,0.8, 0.9, 1.0]
     budget_accs = []
 
     for train_fraction in ratios:
@@ -180,11 +180,11 @@ def run_experiments():
 
     plt.figure()
     plt.plot(ratios, budget_accs, marker="s", color='green')
-    plt.title(f"Learning curve")
+    plt.title(f"CNN Learning curve")
     plt.xlabel("Fraction of training data")
     plt.ylabel("Test accuracy")
     plt.grid(True)
-    plt.savefig(os.path.join(RESULT_DIR, "exp3_budget.png"))
+    plt.savefig(os.path.join(RESULT_DIR, "CNN_exp3_budget.png"))
     plt.close()
 
     report_file.close()

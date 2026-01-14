@@ -90,6 +90,7 @@ def extract_features(X_flat, feature_type='raw'):
                 pixels_per_cell=(4, 4),
                 cells_per_block=(2, 2),
                 visualize=False
+                # feature_vector default is True
             )
             hog_feats.append(f)
         return np.array(hog_feats)

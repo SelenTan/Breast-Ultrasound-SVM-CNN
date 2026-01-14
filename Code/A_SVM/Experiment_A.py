@@ -78,7 +78,7 @@ def run_experiments():
     plt.ylabel('Validation Accuracy')
     plt.legend()
     plt.grid(True, linestyle='--', alpha=0.7)
-    plt.savefig(os.path.join(RESULT_DIR, 'exp1_capacity_comparison.png'))
+    plt.savefig(os.path.join(RESULT_DIR, 'SVM_exp1_capacity_comparison.png'))
     plt.close()
 
     # select the superior feature extraction method based on validation accuracy
@@ -98,7 +98,7 @@ def run_experiments():
     report_file.write(f"HOG Best Acc: {best_acc_hog:.4f} (C={best_c_hog})\n")
     report_file.write(f"Selected winner: {winner_type}\n\n")
 
-    # experiment 3 investigates data augmentation impact
+    # experiment 2 investigates data augmentation impact
     # rotation and noise are applied to training data to assess validation improvement
     aug_modes = ['none', 'rotation', 'noise', 'parallel']
     aug_val_accs = []
@@ -135,7 +135,7 @@ def run_experiments():
 
     plt.figure()
     plt.bar(aug_modes, aug_val_accs, color=['gray', 'orange', 'purple', 'red'])
-    plt.title(f'Augmentation Impact ({winner_type})')
+    plt.title(f'SVM Augmentation Impact ({winner_type})')
     plt.ylabel('Validation Accuracy')
     
     # adjust y axis limits for better visual differentiation
@@ -145,7 +145,7 @@ def run_experiments():
     
     for i, v in enumerate(aug_val_accs):
         plt.text(i, v, f"{v:.4f}", ha="center", va="bottom")
-    plt.savefig(os.path.join(RESULT_DIR, 'exp3_augmentation_val.png'))
+    plt.savefig(os.path.join(RESULT_DIR, 'SVM_exp2_augmentation_val.png'))
     plt.close()
 
     # final evaluation phase on test data
@@ -178,9 +178,9 @@ def run_experiments():
     # visualize confusion matrix for test results
     plot_confusion_matrix(y_test, final_preds, "SVM", save_path=RESULT_DIR)
 
-    # experiment 4 learning curve analysis
+    # experiment 3 learning curve analysis
     # evaluates true performance on test set across different data budgets
-    ratios = [0.1, 0.25, 0.5, 0.75, 1.0]
+    ratios = [0.1, 0.2,0.3,0.4, 0.5,0.6, 0.7,0.8, 0.9, 1.0]
     budget_accs = []
 
     for r in ratios:
@@ -193,11 +193,11 @@ def run_experiments():
 
     plt.figure()
     plt.plot(ratios, budget_accs, marker='s', color='green')
-    plt.title(f'Learning Curve')
+    plt.title(f'SVM Learning Curve')
     plt.xlabel('Fraction of Training Data')
     plt.ylabel('Test Accuracy')
     plt.grid(True)
-    plt.savefig(os.path.join(RESULT_DIR, 'exp4_budget.png'))
+    plt.savefig(os.path.join(RESULT_DIR, 'SVM_exp3_budget.png'))
     plt.close()
 
     report_file.close()
