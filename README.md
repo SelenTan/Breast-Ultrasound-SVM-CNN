@@ -1,4 +1,4 @@
-## Project Overview
+## Breast Ultrasound Classification with SVM and CNN
 This project benchmarks two machine learning models on the BreastMNIST dataset. The goal is to compare a classical approach against a deep learning approach under various conditions.
 
 * **Task A:** Support Vector Machine (SVM)
